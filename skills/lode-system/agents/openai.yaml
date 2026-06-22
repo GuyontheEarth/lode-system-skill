@@ -1,0 +1,4 @@
+interface:
+  display_name: "LODE System"
+  short_description: "Work from durable project truth"
+  default_prompt: "Use $lode-system to guide this repository from its LODE knowledge system."
