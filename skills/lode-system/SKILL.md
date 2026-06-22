@@ -60,4 +60,4 @@ Handoff with:
 
 ## Reference
 
-Read [references/repository-setup.md](references/repository-setup.md) when setting up or adapting LODE conventions in a new repository.
+Read [references/repository-setup.md](references/repository-setup.md) when setting up or adapting LODE conventions in a new repository. Use [references/bootstrap-interview-prompt.md](references/bootstrap-interview-prompt.md) when the repository does not yet have enough durable project knowledge.

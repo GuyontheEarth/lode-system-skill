@@ -2,6 +2,22 @@
 
 Use this reference when a repository is adopting LODE rather than merely using an existing LODE folder.
 
+## Start With An Interview
+
+Use [bootstrap-interview-prompt.md](bootstrap-interview-prompt.md) for the first setup pass. The initial LODE is only useful if it captures the user's real project context, so the agent should interview the user before writing the files.
+
+The setup interview should collect:
+
+- project purpose and intended users;
+- current implementation state;
+- important workflows and roles;
+- source-of-truth data and external systems;
+- architecture and operational constraints;
+- verification commands and manual checks;
+- known risks, unresolved decisions, and terminology.
+
+If the user does not know an answer, record it as unknown or planned. Do not invent authority that has not been confirmed.
+
 ## Minimal LODE Files
 
 ```text

@@ -23,6 +23,14 @@ cp -R skills/lode-system ~/.agents/skills/
 
 Then start a new Codex session and ask to use `$lode-system` in a repository that has a `lode/` folder.
 
+## Bootstrap A New Project
+
+If the project does not have LODE yet, give your agent the bootstrap interview prompt:
+
+[skills/lode-system/references/bootstrap-interview-prompt.md](skills/lode-system/references/bootstrap-interview-prompt.md)
+
+The prompt tells the agent to interview you first, then create the initial LODE files from your answers. This is usually better than asking an agent to invent project docs from a quick summary.
+
 ## Recommended Project Shape
 
 ```text
