@@ -19,6 +19,7 @@ Important rules:
 - Keep durable project truth in `lode/`.
 - Keep temporary setup notes in `lode/tmp/`.
 - Create or recommend one compact project-memory file for short-term job state and handoff evidence.
+- After the initial LODE files exist, generate a project-specific interactive HTML graph and present it to me.
 - Keep the first version useful and concise. It can be expanded as real work happens.
 
 Start by interviewing me on these areas:
@@ -113,7 +114,15 @@ lode/
 5. Link the LODE files from `lode/lode-map.md`.
 6. Include a clear "how agents should start work" section in `lode/practices.md`.
 7. Include verification and manual-testing boundaries in `lode/operations/setup-and-verification.md`.
-8. End by listing what was created, what remains unknown, and what I should review.
+8. Generate the interactive graph from the completed LODE files:
+
+```bash
+node ~/.agents/skills/lode-system/scripts/create-lode-graph.mjs --root . --out lode/lode-graph.html
+```
+
+If the skill is installed somewhere else, locate `scripts/create-lode-graph.mjs` inside the installed `lode-system` skill. If that script is unavailable, create a self-contained `lode/lode-graph.html` with the same idea: a force-directed graph of the project LODE files, clusters, headings, and links.
+
+9. End by listing what was created, what remains unknown, what I should review, and the graph file I can open.
 ```
 
 ## Notes For The Agent

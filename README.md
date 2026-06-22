@@ -31,12 +31,21 @@ If the project does not have LODE yet, give your agent the bootstrap interview p
 
 The prompt tells the agent to interview you first, then create the initial LODE files from your answers. This is usually better than asking an agent to invent project docs from a quick summary.
 
+After the interview and initial files are complete, the skill can generate a project-specific interactive graph:
+
+```bash
+node ~/.agents/skills/lode-system/scripts/create-lode-graph.mjs --root . --out lode/lode-graph.html
+```
+
+The graph is a self-contained HTML file built from the project's LODE markdown files, headings, and links. It is meant as an onboarding view; the markdown LODE files remain the source of truth.
+
 ## Recommended Project Shape
 
 ```text
 your-project/
   lode/
     lode-map.md
+    lode-graph.html
     summary.md
     terminology.md
     practices.md

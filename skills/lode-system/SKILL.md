@@ -50,6 +50,14 @@ If a graph or impact command exists, run it before broad edits to find likely LO
 
 Run focused verification scaled to the work. For LODE edits, include the repo's LODE check when one exists. For source-truth or database work, include relevant operator/database checks.
 
+When setting up LODE for a new repository, generate a project-specific interactive graph after the initial LODE files exist:
+
+```bash
+node ~/.agents/skills/lode-system/scripts/create-lode-graph.mjs --root . --out lode/lode-graph.html
+```
+
+If the skill is installed somewhere else, locate `scripts/create-lode-graph.mjs` inside the installed `lode-system` skill. Include the generated graph path in the handoff so the user can open it.
+
 Handoff with:
 
 - what changed and where;
@@ -60,4 +68,4 @@ Handoff with:
 
 ## Reference
 
-Read [references/repository-setup.md](references/repository-setup.md) when setting up or adapting LODE conventions in a new repository. Use [references/bootstrap-interview-prompt.md](references/bootstrap-interview-prompt.md) when the repository does not yet have enough durable project knowledge.
+Read [references/repository-setup.md](references/repository-setup.md) when setting up or adapting LODE conventions in a new repository. Use [references/bootstrap-interview-prompt.md](references/bootstrap-interview-prompt.md) when the repository does not yet have enough durable project knowledge. The graph generator uses [assets/lode-graph-template.html](assets/lode-graph-template.html) and writes a self-contained HTML file from the repository's LODE markdown.

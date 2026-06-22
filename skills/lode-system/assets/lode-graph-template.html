@@ -1,0 +1,982 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LODE Interactive Graph</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111412;
+      --ink: #f4f7f1;
+      --muted: rgba(244, 247, 241, 0.68);
+      --panel: rgba(16, 19, 18, 0.76);
+      --green: #86f59c;
+      --shadow: 0 18px 60px rgba(0, 0, 0, 0.42);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 26% 20%, rgba(134, 245, 156, 0.11), transparent 28%),
+        radial-gradient(circle at 72% 30%, rgba(239, 228, 122, 0.09), transparent 24%),
+        radial-gradient(circle at 48% 80%, rgba(156, 230, 255, 0.08), transparent 28%),
+        linear-gradient(135deg, #0a0c0b 0%, var(--bg) 44%, #151814 100%);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    #graph {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    #graph.dragging {
+      cursor: grabbing;
+    }
+
+    .ui {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .topbar,
+    .panel,
+    .details,
+    .legend {
+      pointer-events: auto;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .topbar {
+      position: absolute;
+      top: 20px;
+      left: 22px;
+      min-width: min(440px, calc(100vw - 44px));
+      padding: 14px 16px;
+      border-radius: 8px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #111412;
+      font-weight: 800;
+      background:
+        radial-gradient(circle at 40% 34%, #f9fff4 0 14%, transparent 16%),
+        linear-gradient(135deg, #86f59c, #efe47a);
+      box-shadow: 0 0 32px rgba(134, 245, 156, 0.35);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.1;
+      font-weight: 760;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .panel {
+      position: absolute;
+      top: 20px;
+      right: 22px;
+      width: min(342px, calc(100vw - 44px));
+      border-radius: 8px;
+      padding: 14px;
+    }
+
+    .panel-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .search {
+      width: 100%;
+      height: 38px;
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 8px;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.07);
+      outline: 0;
+      padding: 0 12px;
+      font-size: 13px;
+    }
+
+    .search::placeholder {
+      color: rgba(244, 247, 241, 0.46);
+    }
+
+    .button,
+    .mini-button,
+    .cluster {
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 8px;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.07);
+      cursor: pointer;
+      transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, opacity 160ms ease;
+    }
+
+    .button {
+      height: 38px;
+      min-width: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 11px;
+    }
+
+    .button:hover,
+    .button:focus-visible,
+    .mini-button:hover,
+    .mini-button:focus-visible,
+    .cluster:hover,
+    .cluster:focus-visible {
+      border-color: rgba(134, 245, 156, 0.44);
+      background: rgba(134, 245, 156, 0.13);
+    }
+
+    .button:active,
+    .mini-button:active,
+    .cluster:active {
+      transform: translateY(1px);
+    }
+
+    .button svg {
+      width: 16px;
+      height: 16px;
+      stroke-width: 1.9;
+    }
+
+    .cluster-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .cluster {
+      height: 34px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 9px;
+      text-align: left;
+    }
+
+    .cluster[aria-pressed="false"] {
+      opacity: 0.42;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      box-shadow: 0 0 14px currentColor;
+    }
+
+    .cluster-name {
+      font-size: 12px;
+      font-weight: 620;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .details {
+      position: absolute;
+      left: 22px;
+      bottom: 20px;
+      width: min(430px, calc(100vw - 44px));
+      min-height: 138px;
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .details-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .details-title {
+      margin: 10px 0 8px;
+      font-size: clamp(20px, 3.5vw, 30px);
+      line-height: 1.02;
+      font-weight: 780;
+      letter-spacing: 0;
+    }
+
+    .details-copy {
+      margin: 0;
+      color: rgba(244, 247, 241, 0.76);
+      font-size: 13px;
+      line-height: 1.55;
+      max-width: 55ch;
+    }
+
+    .details-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .mini-button {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .legend {
+      position: absolute;
+      right: 22px;
+      bottom: 20px;
+      width: min(274px, calc(100vw - 44px));
+      border-radius: 8px;
+      padding: 13px 14px;
+      color: rgba(244, 247, 241, 0.72);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .legend strong {
+      display: block;
+      color: var(--ink);
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .tooltip {
+      position: fixed;
+      z-index: 10;
+      pointer-events: none;
+      display: none;
+      min-width: 160px;
+      max-width: 260px;
+      padding: 10px 11px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      background: rgba(9, 11, 10, 0.88);
+      color: var(--ink);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      transform: translate(14px, 14px);
+    }
+
+    .tooltip-title {
+      margin: 0 0 4px;
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .tooltip-copy {
+      margin: 0;
+      color: rgba(244, 247, 241, 0.72);
+      font-size: 12px;
+      line-height: 1.38;
+    }
+
+    @media (max-width: 760px) {
+      .topbar {
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        min-width: auto;
+      }
+
+      .panel {
+        top: auto;
+        right: 12px;
+        left: 12px;
+        bottom: 12px;
+        width: auto;
+        padding: 12px;
+      }
+
+      .details {
+        left: 12px;
+        right: 12px;
+        bottom: 166px;
+        width: auto;
+        min-height: 0;
+      }
+
+      .legend {
+        display: none;
+      }
+
+      .cluster-grid {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+
+      .cluster-name {
+        font-size: 11px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .cluster-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .subtitle {
+        display: none;
+      }
+
+      .details-copy {
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <script type="application/json" id="graph-data">__LODE_GRAPH_DATA__</script>
+  <canvas id="graph" aria-label="Interactive LODE knowledge graph"></canvas>
+
+  <div class="ui">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">L</div>
+        <div>
+          <h1 id="pageTitle">LODE Knowledge Graph</h1>
+          <p id="pageSubtitle" class="subtitle">Durable project truth mapped from the repository LODE files.</p>
+        </div>
+      </div>
+    </header>
+
+    <aside class="panel" aria-label="Graph controls">
+      <div class="panel-row">
+        <input id="search" class="search" type="search" autocomplete="off" placeholder="Search nodes">
+        <button id="resetView" class="button" type="button" aria-label="Reset view">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+            <path d="M3 12a9 9 0 1 0 3-6.7"></path>
+            <path d="M3 4v6h6"></path>
+          </svg>
+        </button>
+        <button id="toggleMotion" class="button" type="button" aria-label="Pause motion">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+            <path d="M8 5v14"></path>
+            <path d="M16 5v14"></path>
+          </svg>
+        </button>
+      </div>
+      <div id="clusters" class="cluster-grid"></div>
+    </aside>
+
+    <section class="details" aria-live="polite">
+      <div class="details-meta"><span id="detailsDot" class="dot"></span><span id="detailsGroup">Core</span></div>
+      <h2 id="detailsTitle" class="details-title">LODE System</h2>
+      <p id="detailsCopy" class="details-copy">Select a node to see how it fits into the project knowledge system.</p>
+      <div class="details-actions">
+        <button id="focusSelected" class="mini-button" type="button">Focus node</button>
+        <button id="showConnected" class="mini-button" type="button">Connected only</button>
+        <button id="showAll" class="mini-button" type="button">Show all</button>
+      </div>
+    </section>
+
+    <aside class="legend">
+      <strong>Interaction</strong>
+      Drag nodes or the canvas. Scroll to zoom. Select a node to inspect the project context behind it.
+    </aside>
+  </div>
+
+  <div id="tooltip" class="tooltip" role="status">
+    <p id="tooltipTitle" class="tooltip-title"></p>
+    <p id="tooltipCopy" class="tooltip-copy"></p>
+  </div>
+
+  <script>
+    const fallbackGraph = {
+      projectName: "LODE System",
+      generatedAt: new Date().toISOString(),
+      groups: [
+        { id: "core", label: "Core", color: "#86f59c", anchor: { x: 0, y: 0 } },
+        { id: "features", label: "Features", color: "#efe47a", anchor: { x: -350, y: 220 } },
+        { id: "operations", label: "Operations", color: "#ffcf76", anchor: { x: 350, y: 220 } }
+      ],
+      nodes: [
+        { id: "project", label: "LODE System", group: "core", size: 24, note: "The durable project knowledge layer." },
+        { id: "map", label: "lode-map.md", group: "core", size: 16, note: "The index agents use before planning work." },
+        { id: "summary", label: "summary.md", group: "core", size: 15, note: "The compact project orientation." },
+        { id: "features", label: "Feature LODE", group: "features", size: 14, note: "Feature intent, behavior, and relationships." },
+        { id: "ops", label: "Verification", group: "operations", size: 14, note: "Setup, checks, and handoff evidence." }
+      ],
+      links: [
+        { source: "project", target: "map", strength: 0.9 },
+        { source: "project", target: "summary", strength: 0.85 },
+        { source: "map", target: "features", strength: 0.7 },
+        { source: "map", target: "ops", strength: 0.7 }
+      ]
+    };
+
+    const graphData = readGraphData();
+    const canvas = document.getElementById("graph");
+    const ctx = canvas.getContext("2d");
+    const searchInput = document.getElementById("search");
+    const clustersEl = document.getElementById("clusters");
+    const resetViewButton = document.getElementById("resetView");
+    const toggleMotionButton = document.getElementById("toggleMotion");
+    const focusSelectedButton = document.getElementById("focusSelected");
+    const showConnectedButton = document.getElementById("showConnected");
+    const showAllButton = document.getElementById("showAll");
+    const detailsDot = document.getElementById("detailsDot");
+    const detailsGroup = document.getElementById("detailsGroup");
+    const detailsTitle = document.getElementById("detailsTitle");
+    const detailsCopy = document.getElementById("detailsCopy");
+    const tooltip = document.getElementById("tooltip");
+    const tooltipTitle = document.getElementById("tooltipTitle");
+    const tooltipCopy = document.getElementById("tooltipCopy");
+    const pageTitle = document.getElementById("pageTitle");
+    const pageSubtitle = document.getElementById("pageSubtitle");
+
+    pageTitle.textContent = `${graphData.projectName} LODE Graph`;
+    pageSubtitle.textContent = `Generated from LODE on ${new Date(graphData.generatedAt).toLocaleDateString()}.`;
+
+    const clusterDefs = Object.fromEntries(graphData.groups.map((group) => [group.id, group]));
+    const nodes = graphData.nodes.map((item, index) => placeNode(item, index));
+    const nodeById = new Map(nodes.map((item) => [item.id, item]));
+    const edges = graphData.links
+      .map((edge) => ({
+        source: nodeById.get(edge.source),
+        target: nodeById.get(edge.target),
+        strength: Number(edge.strength || 0.5)
+      }))
+      .filter((edge) => edge.source && edge.target);
+    const neighbors = new Map(nodes.map((item) => [item.id, new Set()]));
+    edges.forEach((edge) => {
+      neighbors.get(edge.source.id).add(edge.target.id);
+      neighbors.get(edge.target.id).add(edge.source.id);
+    });
+
+    let width = 0;
+    let height = 0;
+    let dpr = 1;
+    let time = 0;
+    let paused = false;
+    let query = "";
+    let connectedOnly = false;
+    let hovered = null;
+    let selected = nodeById.get("project") || nodes[0];
+    let draggingNode = null;
+    let panning = false;
+    let pointer = { x: 0, y: 0 };
+    let panStart = { x: 0, y: 0 };
+    let cameraStart = { x: 0, y: 0 };
+    let activeGroups = new Set(Object.keys(clusterDefs));
+    const camera = { x: 0, y: 0, zoom: 0.92 };
+
+    function readGraphData() {
+      const raw = document.getElementById("graph-data")?.textContent?.trim() || "";
+      if (!raw || raw === "__LODE_GRAPH_DATA__") return fallbackGraph;
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return fallbackGraph;
+      }
+    }
+
+    function placeNode(item, index) {
+      const group = clusterDefs[item.group] || Object.values(clusterDefs)[0];
+      const value = Math.abs(hash(item.id || item.label || String(index)));
+      const angle = (value % 628) / 100;
+      const radius = item.id === "project" ? 0 : 58 + (value % 170);
+      return {
+        ...item,
+        size: Number(item.size || 8),
+        x: group.anchor.x + Math.cos(angle) * radius,
+        y: group.anchor.y + Math.sin(angle) * radius,
+        vx: 0,
+        vy: 0
+      };
+    }
+
+    function resize() {
+      dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      resetCamera(false);
+    }
+
+    function resetCamera(animate) {
+      const target = width < 780
+        ? { x: width / 2, y: height * 0.38, zoom: 0.52 }
+        : { x: width * 0.5, y: height * 0.51, zoom: Math.min(1.05, Math.max(0.68, width / 1450)) };
+      if (animate) {
+        camera.x += (target.x - camera.x) * 0.65;
+        camera.y += (target.y - camera.y) * 0.65;
+        camera.zoom += (target.zoom - camera.zoom) * 0.65;
+      } else {
+        camera.x = target.x;
+        camera.y = target.y;
+        camera.zoom = target.zoom;
+      }
+    }
+
+    function screenToWorld(point) {
+      return {
+        x: (point.x - camera.x) / camera.zoom,
+        y: (point.y - camera.y) / camera.zoom
+      };
+    }
+
+    function visibility(item) {
+      if (!activeGroups.has(item.group)) return 0.1;
+      if (connectedOnly && selected && item.id !== selected.id && !neighbors.get(selected.id).has(item.id)) return 0.12;
+      if (!query) return 1;
+      return `${item.label} ${item.group} ${item.note}`.toLowerCase().includes(query) ? 1 : 0.16;
+    }
+
+    function simulate() {
+      const visibleNodes = nodes.filter((item) => visibility(item) > 0.15);
+      for (const edge of edges) {
+        if (visibility(edge.source) < 0.15 || visibility(edge.target) < 0.15) continue;
+        const dx = edge.target.x - edge.source.x;
+        const dy = edge.target.y - edge.source.y;
+        const distance = Math.max(1, Math.hypot(dx, dy));
+        const targetDistance = 112 - edge.strength * 34;
+        const pull = (distance - targetDistance) * 0.0022 * edge.strength;
+        const fx = dx / distance * pull;
+        const fy = dy / distance * pull;
+        if (edge.source !== draggingNode) {
+          edge.source.vx += fx;
+          edge.source.vy += fy;
+        }
+        if (edge.target !== draggingNode) {
+          edge.target.vx -= fx;
+          edge.target.vy -= fy;
+        }
+      }
+
+      for (let a = 0; a < visibleNodes.length; a += 1) {
+        const first = visibleNodes[a];
+        for (let b = a + 1; b < visibleNodes.length; b += 1) {
+          const second = visibleNodes[b];
+          let dx = second.x - first.x;
+          let dy = second.y - first.y;
+          let distance = Math.max(8, Math.hypot(dx, dy));
+          const repel = ((first.size + second.size) * 18) / (distance * distance);
+          dx /= distance;
+          dy /= distance;
+          if (first !== draggingNode) {
+            first.vx -= dx * repel;
+            first.vy -= dy * repel;
+          }
+          if (second !== draggingNode) {
+            second.vx += dx * repel;
+            second.vy += dy * repel;
+          }
+        }
+      }
+
+      for (const item of nodes) {
+        const cluster = clusterDefs[item.group] || Object.values(clusterDefs)[0];
+        const centerPull = item.id === "project" ? 0.014 : item.id.startsWith("heading:") ? 0.004 : 0.006;
+        if (item !== draggingNode) {
+          item.vx += (cluster.anchor.x - item.x) * centerPull;
+          item.vy += (cluster.anchor.y - item.y) * centerPull;
+          item.vx += Math.sin(time * 0.012 + hash(item.id)) * 0.006;
+          item.vy += Math.cos(time * 0.01 + hash(item.label)) * 0.006;
+        }
+        item.vx *= 0.88;
+        item.vy *= 0.88;
+        if (item !== draggingNode) {
+          item.x += item.vx;
+          item.y += item.vy;
+        }
+      }
+    }
+
+    function draw() {
+      time += 1;
+      if (!paused) {
+        simulate();
+        simulate();
+      }
+      ctx.clearRect(0, 0, width, height);
+      drawBackdrop();
+      ctx.save();
+      ctx.translate(camera.x, camera.y);
+      ctx.scale(camera.zoom, camera.zoom);
+      drawClusterRings();
+      drawEdges();
+      drawNodes();
+      ctx.restore();
+      updateTooltip();
+      requestAnimationFrame(draw);
+    }
+
+    function drawBackdrop() {
+      const gradient = ctx.createRadialGradient(width * 0.5, height * 0.45, 0, width * 0.5, height * 0.5, Math.max(width, height) * 0.76);
+      gradient.addColorStop(0, "rgba(255,255,255,0.035)");
+      gradient.addColorStop(0.55, "rgba(255,255,255,0.01)");
+      gradient.addColorStop(1, "rgba(0,0,0,0.26)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    function drawClusterRings() {
+      for (const [key, cluster] of Object.entries(clusterDefs)) {
+        if (!activeGroups.has(key)) continue;
+        const pulse = Math.sin(time * 0.018 + hash(key)) * 10;
+        const radius = key === "core" ? 170 + pulse : 138 + pulse;
+        const gradient = ctx.createRadialGradient(cluster.anchor.x, cluster.anchor.y, 8, cluster.anchor.x, cluster.anchor.y, radius);
+        gradient.addColorStop(0, `${cluster.color}20`);
+        gradient.addColorStop(0.58, `${cluster.color}08`);
+        gradient.addColorStop(1, `${cluster.color}00`);
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(cluster.anchor.x, cluster.anchor.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.save();
+        ctx.globalAlpha = 0.22;
+        ctx.strokeStyle = cluster.color;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 12]);
+        ctx.beginPath();
+        ctx.arc(cluster.anchor.x, cluster.anchor.y, radius * 0.72, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function drawEdges() {
+      ctx.save();
+      ctx.lineCap = "round";
+      for (const edge of edges) {
+        const baseOpacity = Math.min(visibility(edge.source), visibility(edge.target));
+        if (baseOpacity <= 0.1) continue;
+        const related = selected && (edge.source.id === selected.id || edge.target.id === selected.id);
+        const hoverRelated = hovered && (edge.source.id === hovered.id || edge.target.id === hovered.id);
+        const alpha = related || hoverRelated ? 0.74 : 0.18 * baseOpacity;
+        const sourceColor = colorFor(edge.source);
+        const targetColor = colorFor(edge.target);
+        const gradient = ctx.createLinearGradient(edge.source.x, edge.source.y, edge.target.x, edge.target.y);
+        gradient.addColorStop(0, hexToRgba(sourceColor, alpha));
+        gradient.addColorStop(1, hexToRgba(targetColor, alpha));
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = related || hoverRelated ? 1.4 : 0.72;
+        ctx.beginPath();
+        ctx.moveTo(edge.source.x, edge.source.y);
+        const midX = (edge.source.x + edge.target.x) / 2 + Math.sin(time * 0.006 + hash(edge.source.id)) * 8;
+        const midY = (edge.source.y + edge.target.y) / 2 + Math.cos(time * 0.006 + hash(edge.target.id)) * 8;
+        ctx.quadraticCurveTo(midX, midY, edge.target.x, edge.target.y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawNodes() {
+      const sorted = [...nodes].sort((a, b) => a.size - b.size);
+      for (const item of sorted) {
+        const opacity = visibility(item);
+        if (opacity <= 0.08) continue;
+        const isSelected = selected && selected.id === item.id;
+        const isHovered = hovered && hovered.id === item.id;
+        const isNeighbor = selected && neighbors.get(selected.id).has(item.id);
+        const nodeColor = colorFor(item);
+        const pulse = item.id.startsWith("heading:") ? 0 : Math.sin(time * 0.035 + hash(item.id)) * 1.2;
+        const radius = item.size + pulse + (isSelected ? 3.4 : isHovered ? 2 : 0);
+
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        if (isSelected || isHovered || isNeighbor || item.size > 13) {
+          const glow = ctx.createRadialGradient(item.x, item.y, 0, item.x, item.y, radius * 4.8);
+          glow.addColorStop(0, hexToRgba(nodeColor, isSelected ? 0.42 : 0.24));
+          glow.addColorStop(1, hexToRgba(nodeColor, 0));
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(item.x, item.y, radius * 4.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.fillStyle = nodeColor;
+        ctx.strokeStyle = "rgba(255,255,255,0.62)";
+        ctx.lineWidth = isSelected ? 1.9 : 0.8;
+        ctx.beginPath();
+        ctx.arc(item.x, item.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        const showLabel = isSelected || isHovered || item.size >= 10 || camera.zoom > 1.08 && !item.id.startsWith("heading:");
+        if (showLabel) {
+          const fontSize = item.size > 14 ? 13 : 11;
+          ctx.font = `${item.size > 13 ? 760 : 650} ${fontSize}px Inter, system-ui, sans-serif`;
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = isSelected ? "rgba(255,255,255,0.98)" : "rgba(244,247,241,0.82)";
+          ctx.strokeStyle = "rgba(8,10,9,0.86)";
+          ctx.lineWidth = 4;
+          ctx.strokeText(item.label, item.x + radius + 8, item.y);
+          ctx.fillText(item.label, item.x + radius + 8, item.y);
+        }
+        ctx.restore();
+      }
+    }
+
+    function nearestNode(screenPoint) {
+      const world = screenToWorld(screenPoint);
+      let nearest = null;
+      let nearestDistance = Infinity;
+      for (const item of nodes) {
+        if (visibility(item) < 0.18) continue;
+        const distance = Math.hypot(item.x - world.x, item.y - world.y);
+        const hitRadius = Math.max(10, item.size + 8 / camera.zoom);
+        if (distance < hitRadius && distance < nearestDistance) {
+          nearest = item;
+          nearestDistance = distance;
+        }
+      }
+      return nearest;
+    }
+
+    function updateDetails(item) {
+      if (!item) return;
+      selected = item;
+      const group = clusterDefs[item.group] || Object.values(clusterDefs)[0];
+      detailsDot.style.color = group.color;
+      detailsDot.style.background = group.color;
+      detailsGroup.textContent = group.label;
+      detailsTitle.textContent = item.label;
+      detailsCopy.textContent = item.note || "No note available.";
+    }
+
+    function updateTooltip() {
+      if (!hovered || hovered === selected || draggingNode || panning) {
+        tooltip.style.display = "none";
+        return;
+      }
+      tooltip.style.display = "block";
+      tooltip.style.left = `${pointer.x}px`;
+      tooltip.style.top = `${pointer.y}px`;
+      tooltipTitle.textContent = hovered.label;
+      tooltipCopy.textContent = `${clusterDefs[hovered.group]?.label || hovered.group}: ${hovered.note || ""}`;
+    }
+
+    function focusNode(item) {
+      if (!item) return;
+      const targetZoom = width < 760 ? 0.9 : 1.18;
+      camera.zoom += (targetZoom - camera.zoom) * 0.82;
+      camera.x += ((width / 2) - item.x * camera.zoom - camera.x) * 0.82;
+      camera.y += ((height / 2) - item.y * camera.zoom - camera.y) * 0.82;
+    }
+
+    function renderClusterButtons() {
+      clustersEl.innerHTML = "";
+      Object.entries(clusterDefs).forEach(([key, cluster]) => {
+        const button = document.createElement("button");
+        button.className = "cluster";
+        button.type = "button";
+        button.setAttribute("aria-pressed", activeGroups.has(key) ? "true" : "false");
+        button.innerHTML = `<span class="dot" style="color:${cluster.color};background:${cluster.color}"></span><span class="cluster-name">${cluster.label}</span>`;
+        button.addEventListener("click", () => {
+          if (activeGroups.has(key) && activeGroups.size > 1) activeGroups.delete(key);
+          else activeGroups.add(key);
+          button.setAttribute("aria-pressed", activeGroups.has(key) ? "true" : "false");
+        });
+        clustersEl.appendChild(button);
+      });
+    }
+
+    function resetAll() {
+      query = "";
+      connectedOnly = false;
+      activeGroups = new Set(Object.keys(clusterDefs));
+      searchInput.value = "";
+      renderClusterButtons();
+      updateDetails(nodeById.get("project") || nodes[0]);
+      resetCamera(true);
+    }
+
+    function colorFor(item) {
+      return (clusterDefs[item.group] || Object.values(clusterDefs)[0]).color;
+    }
+
+    function hexToRgba(hex, alpha) {
+      const clean = hex.replace("#", "");
+      const red = parseInt(clean.slice(0, 2), 16);
+      const green = parseInt(clean.slice(2, 4), 16);
+      const blue = parseInt(clean.slice(4, 6), 16);
+      return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+    }
+
+    function hash(value) {
+      let result = 0;
+      for (let index = 0; index < String(value).length; index += 1) {
+        result = ((result << 5) - result) + String(value).charCodeAt(index);
+        result |= 0;
+      }
+      return result;
+    }
+
+    canvas.addEventListener("pointerdown", (event) => {
+      pointer = { x: event.clientX, y: event.clientY };
+      const hit = nearestNode(pointer);
+      canvas.setPointerCapture(event.pointerId);
+      canvas.classList.add("dragging");
+      if (hit) {
+        draggingNode = hit;
+        updateDetails(hit);
+      } else {
+        panning = true;
+        panStart = { x: event.clientX, y: event.clientY };
+        cameraStart = { ...camera };
+      }
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      pointer = { x: event.clientX, y: event.clientY };
+      if (draggingNode) {
+        const world = screenToWorld(pointer);
+        draggingNode.x = world.x;
+        draggingNode.y = world.y;
+        draggingNode.vx = 0;
+        draggingNode.vy = 0;
+        hovered = draggingNode;
+      } else if (panning) {
+        camera.x = cameraStart.x + (event.clientX - panStart.x);
+        camera.y = cameraStart.y + (event.clientY - panStart.y);
+      } else {
+        hovered = nearestNode(pointer);
+      }
+    });
+
+    canvas.addEventListener("pointerup", (event) => {
+      canvas.releasePointerCapture(event.pointerId);
+      canvas.classList.remove("dragging");
+      draggingNode = null;
+      panning = false;
+      hovered = nearestNode(pointer);
+    });
+
+    canvas.addEventListener("pointerleave", () => {
+      hovered = null;
+      tooltip.style.display = "none";
+    });
+
+    canvas.addEventListener("click", (event) => {
+      const hit = nearestNode({ x: event.clientX, y: event.clientY });
+      if (hit) updateDetails(hit);
+    });
+
+    canvas.addEventListener("dblclick", (event) => {
+      const hit = nearestNode({ x: event.clientX, y: event.clientY });
+      if (hit) {
+        updateDetails(hit);
+        focusNode(hit);
+      }
+    });
+
+    canvas.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      const before = screenToWorld({ x: event.clientX, y: event.clientY });
+      const scale = Math.exp(-event.deltaY * 0.001);
+      camera.zoom = Math.max(0.34, Math.min(2.2, camera.zoom * scale));
+      camera.x = event.clientX - before.x * camera.zoom;
+      camera.y = event.clientY - before.y * camera.zoom;
+    }, { passive: false });
+
+    searchInput.addEventListener("input", () => {
+      query = searchInput.value.trim().toLowerCase();
+      connectedOnly = false;
+      if (query) {
+        const match = nodes.find((item) => visibility(item) === 1);
+        if (match) updateDetails(match);
+      }
+    });
+
+    resetViewButton.addEventListener("click", resetAll);
+
+    toggleMotionButton.addEventListener("click", () => {
+      paused = !paused;
+      toggleMotionButton.setAttribute("aria-label", paused ? "Resume motion" : "Pause motion");
+      toggleMotionButton.innerHTML = paused
+        ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M8 5l11 7-11 7z"></path></svg>`
+        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M8 5v14"></path><path d="M16 5v14"></path></svg>`;
+    });
+
+    focusSelectedButton.addEventListener("click", () => focusNode(selected));
+    showConnectedButton.addEventListener("click", () => {
+      connectedOnly = true;
+    });
+    showAllButton.addEventListener("click", () => {
+      connectedOnly = false;
+      query = "";
+      searchInput.value = "";
+      activeGroups = new Set(Object.keys(clusterDefs));
+      renderClusterButtons();
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") resetAll();
+      if (event.key === "/" && document.activeElement !== searchInput) {
+        event.preventDefault();
+        searchInput.focus();
+      }
+    });
+
+    window.addEventListener("resize", resize);
+
+    renderClusterButtons();
+    updateDetails(selected);
+    resize();
+    requestAnimationFrame(draw);
+  </script>
+</body>
+</html>

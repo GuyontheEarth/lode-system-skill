@@ -68,6 +68,18 @@ PENDING ACTIONS:
 SUGGESTED IMPROVEMENT:
 ```
 
+## Interactive LODE Graph
+
+After the initial interview has produced the LODE files, generate a project-specific graph:
+
+```bash
+node ~/.agents/skills/lode-system/scripts/create-lode-graph.mjs --root . --out lode/lode-graph.html
+```
+
+The generator scans `lode/`, builds nodes from markdown files and headings, follows markdown links, and writes a self-contained HTML graph. If the installed skill lives somewhere other than `~/.agents/skills/lode-system`, locate `scripts/create-lode-graph.mjs` inside that skill folder and run it from there.
+
+Include `lode/lode-graph.html` in the setup handoff. It is a visual onboarding artifact: useful for seeing the project shape, but the markdown LODE files remain the durable source of truth.
+
 ## Change Rule
 
 Before a feature change, read its LODE file and inspect the code paths it names. Before handoff, update the file if intended behavior, current behavior, source of truth, role authority, relationships, or failure modes changed.
